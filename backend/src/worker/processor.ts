@@ -51,6 +51,19 @@ export async function processSendJob(job: Job<SendJob>): Promise<void> {
   if (row.status !== 'pending') {
     return;
   }
+  // Respect pause: if the sequence was paused after this job was already enqueued,
+  // skip the send instead of firing it anyway.
+  if (row.sequence_status !== 'active') {
+    await pool.execute(
+      "UPDATE scheduled_emails SET status='skipped' WHERE id=?",
+      [row.id],
+    );
+    await pool.execute(
+      'INSERT INTO send_logs (scheduled_email_id, mailbox_id, status, message) VALUES (?, ?, ?, ?)',
+      [row.id, row.mailbox_id, 'skipped', `sequence ${row.sequence_status}`],
+    );
+    return;
+  }
   if (row.prospect_status !== 'active') {
     await pool.execute(
       "UPDATE scheduled_emails SET status='skipped' WHERE id=?",
@@ -81,11 +94,6 @@ export async function processSendJob(job: Job<SendJob>): Promise<void> {
     throw new Error(`rate_limited:${check.reason}`);
   }
 
-  await pool.execute(
-    'INSERT INTO send_logs (scheduled_email_id, mailbox_id, status, message) VALUES (?, ?, ?, ?)',
-    [row.id, row.mailbox_id, 'sent', 'Email dispatched'],
-  );
-
   try {
     await send({
       from: row.mailbox_email,
@@ -97,11 +105,19 @@ export async function processSendJob(job: Job<SendJob>): Promise<void> {
       "UPDATE scheduled_emails SET status='sent', sent_at=NOW() WHERE id = ?",
       [row.id],
     );
+    await pool.execute(
+      'INSERT INTO send_logs (scheduled_email_id, mailbox_id, status, message) VALUES (?, ?, ?, ?)',
+      [row.id, row.mailbox_id, 'sent', 'Email dispatched'],
+    );
   } catch (err) {
     const message = (err as Error).message;
     await pool.execute(
       "UPDATE scheduled_emails SET status='failed', last_error=? WHERE id = ?",
       [message, row.id],
+    );
+    await pool.execute(
+      'INSERT INTO send_logs (scheduled_email_id, mailbox_id, status, message) VALUES (?, ?, ?, ?)',
+      [row.id, row.mailbox_id, 'failed', message],
     );
     throw err;
   }

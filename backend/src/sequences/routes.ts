@@ -21,11 +21,6 @@ router.use(requireAuth);
 
 router.get('/', async (req: AuthedRequest, res) => {
   const sequences = await listSequencesForUser(req.userId!);
-  if (sequences.length === 0) {
-    return res.json({
-      message: "no sequences found this user"
-    })
-  }
   res.json(sequences);
 });
 
@@ -33,7 +28,7 @@ router.post('/', async (req: AuthedRequest, res) => {
   const parsed = z.object({ name: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
   const id = await createSequence(req.userId!, parsed.data.name);
-  res.status(201).json({ message:"sequences coreated", id });
+  res.status(201).json({ id });
 });
 
 router.get('/:id', async (req: AuthedRequest, res) => {
@@ -49,12 +44,6 @@ router.get('/:id', async (req: AuthedRequest, res) => {
 router.get('/:id/steps', async (req: AuthedRequest, res) => {
   const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
   if (!seq) return res.status(404).json({ error: 'not_found' });
-  const sequences_steps = await getSteps(seq.id);
-  if(sequences_steps.length===0){
-    return res.json({
-      message:"no sequences steps found for the sequence id "+req.params.id
-    })
-  }
   res.json(await getSteps(seq.id));
 });
 
@@ -71,11 +60,18 @@ router.post('/:id/steps', async (req: AuthedRequest, res) => {
   const parsed = stepSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
   const { step_order, delay_days, subject, body } = parsed.data;
-  const [result] = await pool.execute<ResultSetHeader>(
-    'INSERT INTO sequence_steps (sequence_id, step_order, delay_days, subject, body) VALUES (?, ?, ?, ?, ?)',
-    [seq.id, step_order, delay_days, subject, body],
-  );
-  res.status(201).json({ id: result.insertId });
+  try {
+    const [result] = await pool.execute<ResultSetHeader>(
+      'INSERT INTO sequence_steps (sequence_id, step_order, delay_days, subject, body) VALUES (?, ?, ?, ?, ?)',
+      [seq.id, step_order, delay_days, subject, body],
+    );
+    res.status(201).json({ id: result.insertId });
+  } catch (err: any) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'step_order_conflict', message: `step_order ${step_order} already exists in this sequence` });
+    }
+    throw err;
+  }
 });
 
 const prospectSchema = z.object({
@@ -86,9 +82,7 @@ const prospectSchema = z.object({
 router.get('/:id/prospects', async (req: AuthedRequest, res) => {
   const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
   if (!seq) return res.status(404).json({ error: 'not_found' });
-  const prospects = await getProspects(seq.id);
-  if (prospects.length === 0) return res.json({ message: 'no prospects found for sequence ' + req.params.id });
-  res.json(prospects);
+  res.json(await getProspects(seq.id));
 });
 
 router.post('/:id/prospects', async (req: AuthedRequest, res) => {
@@ -118,23 +112,30 @@ router.delete('/:id/prospects/:pid', async (req: AuthedRequest, res) => {
   res.json({ ok: true });
 });
 
-router.get('/:id/scheduled-emails', async (req: AuthedRequest, res) => {
-  const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
-  if (!seq) return res.status(404).json({ error: 'not_found' });
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT id, step_id, prospect_id, mailbox_id, scheduled_at, status, attempts, last_error, sent_at
-       FROM scheduled_emails
-      WHERE sequence_id = ?
-      ORDER BY scheduled_at ASC, id ASC
-      LIMIT 500`,
-    [seq.id],
-  );
-  res.json(rows);
+router.get('/:id/scheduled-emails', async (req: AuthedRequest, res, next) => {
+  try {
+    const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
+    if (!seq) return res.status(404).json({ error: 'not_found' });
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 100, 500);
+    const offset = parseInt(req.query.offset as string, 10) || 0;
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT id, sequence_id, step_id, prospect_id, mailbox_id, scheduled_at, status, attempts, last_error, sent_at
+         FROM scheduled_emails
+        WHERE sequence_id = ?
+        ORDER BY scheduled_at ASC, id ASC
+        LIMIT ? OFFSET ?`,
+      [seq.id, limit, offset],
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post('/:id/schedule', async (req: AuthedRequest, res) => {
   const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
   if (!seq) return res.status(404).json({ error: 'not_found' });
+  if (seq.status === 'completed') return res.status(409).json({ error: 'sequence_completed' });
   const result = await scheduleSequence({ sequenceId: seq.id });
   res.json(result);
 });

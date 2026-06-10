@@ -117,5 +117,5 @@ export async function setSequenceStatus(
  * blasting all queued emails the moment the user clicks Resume.
  */
 export function computeNextSendTime(prevSentAt: Date, delayDays: number): Date {
-  return new Date(prevSentAt.getTime() + delayDays * 24 * 60 * 60);
+  return new Date(prevSentAt.getTime() + delayDays * 24 * 60 * 60*1000);
 }

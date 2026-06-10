@@ -3,6 +3,7 @@ import path from 'path';
 import mysql from 'mysql2/promise';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
+import { Queue } from 'bullmq';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config();
@@ -45,6 +46,23 @@ async function main() {
       'utf8'
     );
     await conn.query(seed);
+
+    console.log('Enqueueing BullMQ jobs for seeded scheduled_emails...');
+    const [pendingRows] = await conn.query(
+      "SELECT id FROM scheduled_emails WHERE status = 'pending'"
+    ) as [Array<{ id: number }>, unknown];
+
+    const sendQueue = new Queue('email-send', {
+      connection: {
+        host: process.env.REDIS_HOST ?? '127.0.0.1',
+        port: Number(process.env.REDIS_PORT ?? 6379),
+      },
+    });
+    for (const row of pendingRows) {
+      await sendQueue.add('send', { scheduledEmailId: row.id }, { jobId: `se-${row.id}` });
+    }
+    await sendQueue.close();
+    console.log(`Enqueued ${pendingRows.length} job(s).`);
 
     console.log('Done! Seed accounts:');
     console.log('  alice@test.com / password123  — 3 mailboxes, 2 sequences');

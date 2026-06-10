@@ -16,10 +16,11 @@ app.use('/sequences', sequencesRoutes);
 app.use('/scheduled-emails', scheduledEmailRouter);
 app.use('/mailboxes', mailboxesRoutes);
 
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[api] unhandled error:', err);
+app.use((err: Error & { status?: number; statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status = err.status ?? err.statusCode ?? 500;
+  if (status >= 500) console.error('[api] unhandled error:', err);
   if (res.headersSent) return;
-  res.status(500).json({ error: 'internal_error' });
+  res.status(status).json({ error: status === 400 ? 'bad_request' : 'internal_error' });
 });
 
 app.listen(env.port, () => {

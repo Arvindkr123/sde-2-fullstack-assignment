@@ -26,12 +26,12 @@
           }
         ],
         "bodyType": "json",
-        "body": "{\n  \"email\": \"arvind@gmail.com\",\n  \"password\": \"hello@132455\"\n}",
+        "body": "{\n  \"email\": \"sawan@gmail.com\",\n  \"password\": \"password123\"\n}",
         "graphqlQuery": "",
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781072677637-m8g920",
+            "id": "1781097708641-tcx4id",
             "name": "Status is 200",
             "type": "status",
             "key": "",
@@ -60,12 +60,12 @@
           }
         ],
         "bodyType": "json",
-        "body": "{\n  \"email\": \"ram@gmail.com\",\n  \"password\": \"hello@132455\"\n}",
+        "body": "{\n  \"email\": \"sawan@gmail.com\",\n  \"password\": \"password123\"\n}",
         "graphqlQuery": "",
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781072391570-z0rxlw",
+            "id": "1781097656880-qvbz3t",
             "name": "Status is 200",
             "type": "status",
             "key": "",
@@ -83,7 +83,7 @@
           {
             "enabled": true,
             "key": "AUTHORIZATION",
-            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA5NzcwOCwiZXhwIjoxNzgxNzAyNTA4fQ.kozSAHYD5BagEWGHNTVstT_aJ8dyYVq9ZS2AE5dD2uc"
           }
         ],
         "params": [
@@ -99,7 +99,7 @@
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781073308610-4qyzbd",
+            "id": "1781097764726-awojs5",
             "name": "Status is 200",
             "type": "status",
             "key": "",
@@ -117,7 +117,7 @@
           {
             "enabled": true,
             "key": "AUTHORIZATION",
-            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA4OTczMSwiZXhwIjoxNzgxNjk0NTMxfQ.Ht44dhgCQV8tLH72npHjRjWc01ohZm5j_wmwQKdqDOo"
           }
         ],
         "params": [
@@ -128,12 +128,12 @@
           }
         ],
         "bodyType": "json",
-        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "body": "{\n  \"email\": \"sawan@gmail.com\"\n}",
         "graphqlQuery": "",
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781073438860-nowicw",
+            "id": "1781097789952-afztf5",
             "name": "Status is 200",
             "type": "status",
             "key": "",
@@ -146,12 +146,12 @@
         "type": "request",
         "name": "get mailboxes quota check",
         "method": "GET",
-        "url": "http://localhost:4000/mailboxes/5/quota",
+        "url": "http://localhost:4000/mailboxes/3/quota",
         "headers": [
           {
             "enabled": true,
             "key": "AUTHORIZATION",
-            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImlhdCI6MTc4MTA5MzI3MiwiZXhwIjoxNzgxNjk4MDcyfQ.VPkA9QxOUehN3b6fuut4jobF5Ua0DhPqCGqZplD9rgg"
           }
         ],
         "params": [
@@ -167,7 +167,7 @@
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781073677199-a95x6i",
+            "id": "1781097882828-npp9jm",
             "name": "Status is 200",
             "type": "status",
             "key": "",
@@ -185,7 +185,7 @@
           {
             "enabled": true,
             "key": "AUTHORIZATION",
-            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA5NzcwOCwiZXhwIjoxNzgxNzAyNTA4fQ.kozSAHYD5BagEWGHNTVstT_aJ8dyYVq9ZS2AE5dD2uc"
           }
         ],
         "params": [
@@ -196,12 +196,12 @@
           }
         ],
         "bodyType": "json",
-        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "body": "{\n   \"email\":\"sawan@gmail.com\"\n}",
         "graphqlQuery": "",
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781074443012-6tmuhl",
+            "id": "1781097962645-xbmgf5",
             "name": "Status is 200",
             "type": "status",
             "key": "",
@@ -219,7 +219,7 @@
           {
             "enabled": true,
             "key": "AUTHORIZATION",
-            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA5NzcwOCwiZXhwIjoxNzgxNzAyNTA4fQ.kozSAHYD5BagEWGHNTVstT_aJ8dyYVq9ZS2AE5dD2uc"
           }
         ],
         "params": [
@@ -230,12 +230,12 @@
           }
         ],
         "bodyType": "json",
-        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "body": "{\n   \"name\":\"traveling\"\n}",
         "graphqlQuery": "",
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781076351923-tke4wt",
+            "id": "1781097997375-gz20qb",
             "name": "Status is 200",
             "type": "status",
             "key": "",
@@ -248,12 +248,12 @@
         "type": "request",
         "name": "get Sequence For User",
         "method": "GET",
-        "url": "http://localhost:4000/sequences/4",
+        "url": "http://localhost:4000/sequences/",
         "headers": [
           {
             "enabled": true,
             "key": "AUTHORIZATION",
-            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA5NzcwOCwiZXhwIjoxNzgxNzAyNTA4fQ.kozSAHYD5BagEWGHNTVstT_aJ8dyYVq9ZS2AE5dD2uc"
           }
         ],
         "params": [
@@ -264,12 +264,12 @@
           }
         ],
         "bodyType": "json",
-        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "body": "{\n   \"email\":\"sawan@gmail.com\"\n}",
         "graphqlQuery": "",
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781074911278-3af3lb",
+            "id": "1781098045937-46fiat",
             "name": "Status is 200",
             "type": "status",
             "key": "",
@@ -282,7 +282,41 @@
         "type": "request",
         "name": "get Sequence Steps",
         "method": "GET",
-        "url": "http://localhost:4000/sequences/4/steps",
+        "url": "http://localhost:4000/sequences/3/steps",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA5NzcwOCwiZXhwIjoxNzgxNzAyNTA4fQ.kozSAHYD5BagEWGHNTVstT_aJ8dyYVq9ZS2AE5dD2uc"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n   \"email\":\"sawan@gmail.com\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781098090806-tr9rpp",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "435f6e4f-5484-4440-be21-10f50599dba5",
+        "type": "request",
+        "name": "add the prospect with the help of sequence id",
+        "method": "POST",
+        "url": "http://localhost:4000/sequences/3/prospects",
         "headers": [
           {
             "enabled": true,
@@ -298,12 +332,12 @@
           }
         ],
         "bodyType": "json",
-        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "body": "{ \"email\": \"jane.smith@example.com\", \"name\": \"Jane Smith\" }",
         "graphqlQuery": "",
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781075814267-1qpci9",
+            "id": "1781098523346-m559a2",
             "name": "Status is 200",
             "type": "status",
             "key": "",
@@ -312,11 +346,45 @@
         ]
       },
       {
-        "id": "435f6e4f-5484-4440-be21-10f50599dba5",
+        "id": "7b8e9ec3-7d00-4ad3-a51c-b7e0e274060e",
         "type": "request",
-        "name": "add the sequences steps with sequence help of id",
+        "name": "add the sequences for steps",
         "method": "POST",
-        "url": "http://localhost:4000/sequences/4/steps",
+        "url": "http://localhost:4000/sequences/3/steps",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA5NzcwOCwiZXhwIjoxNzgxNzAyNTA4fQ.kozSAHYD5BagEWGHNTVstT_aJ8dyYVq9ZS2AE5dD2uc"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n  \"step_order\": 1,\n  \"delay_days\": 0,\n  \"subject\": \"Hello budy how are you doing!\",\n  \"body\": \"Hi {{name}},\\n\\nWanted to share one more tip before we wrap up.\\n\\nBest,\\nSawan\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781098382103-3rv4jf",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "d517e3d4-da54-4efe-a75c-7208c3ec18a7",
+        "type": "request",
+        "name": "get the sequence of prospects with help of sequence id",
+        "method": "GET",
+        "url": "http://localhost:4000/sequences/1/prospects",
         "headers": [
           {
             "enabled": true,
@@ -337,7 +405,109 @@
         "graphqlVariables": "{\n  \n}",
         "assertions": [
           {
-            "id": "1781076742685-ddppxu",
+            "id": "1781093583117-u2sb6r",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "d9b64591-123a-47c3-82ba-0d37eb32bc63",
+        "type": "request",
+        "name": "Get the schedule emails with help of sequences id",
+        "method": "GET",
+        "url": "http://localhost:4000/sequences/1/scheduled-emails",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n  \"step_order\": 1,\n  \"delay_days\": 2,\n  \"subject\": \"traveling\",\n  \"body\": \"hello there\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781093598955-6crd8s",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "2b78ce8e-5fb9-45f1-abf0-9ac58f4082ec",
+        "type": "request",
+        "name": "schedule emails with help of sequence id",
+        "method": "POST",
+        "url": "http://localhost:4000/sequences/3/schedule",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA5NzcwOCwiZXhwIjoxNzgxNzAyNTA4fQ.kozSAHYD5BagEWGHNTVstT_aJ8dyYVq9ZS2AE5dD2uc"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781098745777-j1ujyd",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "17a9ad13-b1b9-47be-827a-f0b5b47bedf8",
+        "type": "request",
+        "name": "resume the schedule with sequence id",
+        "method": "POST",
+        "url": "http://localhost:4000/sequences/3/pause",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA5NzcwOCwiZXhwIjoxNzgxNzAyNTA4fQ.kozSAHYD5BagEWGHNTVstT_aJ8dyYVq9ZS2AE5dD2uc"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781100300852-ak6uoa",
             "name": "Status is 200",
             "type": "status",
             "key": "",

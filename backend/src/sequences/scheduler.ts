@@ -2,6 +2,7 @@ import { pool } from '../config/db';
 import { Queue } from 'bullmq';
 import { bullConnection } from '../config/redis';
 import { getSteps, getProspects, setSequenceStatus, type Step } from './service';
+import { remainingBudget } from '../mailboxes/rateLimiter';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 export const SEND_QUEUE = 'email-send';
@@ -29,6 +30,13 @@ export async function scheduleSequence(opts: ScheduleOpts): Promise<ScheduleResu
   const prospects = await getProspects(sequenceId);
   const mailboxId = await pickMailboxForSequence(sequenceId);
 
+  // Prospects already in the queue (any status) — skip them so we never double-schedule.
+  const [alreadyScheduled] = await pool.execute<RowDataPacket[]>(
+    'SELECT DISTINCT prospect_id FROM scheduled_emails WHERE sequence_id = ?',
+    [sequenceId],
+  );
+  const alreadyScheduledIds = new Set((alreadyScheduled as RowDataPacket[]).map(r => r.prospect_id as number));
+
   let scheduled = 0;
   let skipped = 0;
 
@@ -37,13 +45,18 @@ export async function scheduleSequence(opts: ScheduleOpts): Promise<ScheduleResu
       skipped++;
       continue;
     }
+    if (alreadyScheduledIds.has(prospect.id)) {
+      skipped++;
+      continue;
+    }
 
-    // Walk every step for this prospect.
-    for (let i = 1; i <= steps.length; i++) {
+    // Walk every step for this prospect, accumulating delays from the start time.
+    let cursor = from.getTime();
+    for (let i = 0; i < steps.length; i++) {
       try {
         const step = steps[i];
-        const delayMs = step.delay_days * 24 * 60 * 60 * 1000;
-        const scheduledAt = new Date(from.getTime() + delayMs);
+        cursor += step.delay_days * 24 * 60 * 60 * 1000;
+        const scheduledAt = new Date(cursor);
 
         const [result] = await pool.execute<ResultSetHeader>(
           `INSERT INTO scheduled_emails
@@ -74,19 +87,79 @@ export async function scheduleSequence(opts: ScheduleOpts): Promise<ScheduleResu
 }
 
 /**
- * Resume a paused sequence: pick remaining pending emails and re-enqueue
- * them spaced by the configured step delays from "now". (This is partial —
- * candidate is expected to finish.)
+ * Resume a paused sequence: re-schedule all pending emails from "now",
+ * cascading step delays per prospect. Respects the mailbox's remaining daily
+ * budget — emails that would exceed today's quota are skipped (they can be
+ * resumed again tomorrow or the user can re-schedule).
  */
 export async function resumeSequence(sequenceId: number): Promise<ScheduleResult> {
-  // TODO(candidate): implement.
-  // Hints:
-  //  - SELECT pending scheduled_emails for this sequence ordered by id
-  //  - bucket them by prospect; the first one in each bucket fires after
-  //    step1.delay_days from now, subsequent ones cascade by their step delay
-  //  - respect remainingBudget() per mailbox so we don't queue past today's quota
-  void sequenceId;
-  return { scheduled: 0, skipped: 0 };
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT se.id, se.prospect_id, se.mailbox_id, ss.delay_days, ss.step_order
+       FROM scheduled_emails se
+       JOIN sequence_steps ss ON ss.id = se.step_id
+      WHERE se.sequence_id = ? AND se.status = 'pending'
+      ORDER BY se.prospect_id ASC, ss.step_order ASC`,
+    [sequenceId],
+  );
+
+  type PendingRow = { id: number; prospect_id: number; mailbox_id: number; delay_days: number; step_order: number };
+  const emails = rows as PendingRow[];
+  if (emails.length === 0) return { scheduled: 0, skipped: 0 };
+
+  // Group pending emails by prospect so we can cascade delays correctly.
+  const byProspect = new Map<number, PendingRow[]>();
+  for (const email of emails) {
+    const list = byProspect.get(email.prospect_id) ?? [];
+    list.push(email);
+    byProspect.set(email.prospect_id, list);
+  }
+
+  // Cache remaining daily budget per mailbox to avoid N+1 Redis calls.
+  // We only gate emails landing "today" — future-dated emails don't burn today's quota.
+  const budgetCache = new Map<number, number>();
+  const endOfToday = new Date();
+  endOfToday.setUTCHours(23, 59, 59, 999);
+
+  let scheduled = 0;
+  let skipped = 0;
+  const now = Date.now();
+
+  for (const [, prospectEmails] of byProspect) {
+    let cursor = now;
+    for (const email of prospectEmails) {
+      cursor += email.delay_days * 24 * 60 * 60 * 1000;
+      const scheduledAt = new Date(cursor);
+
+      // Budget check only for sends landing today so we don't accidentally
+      // queue more than the mailbox can deliver before midnight.
+      if (scheduledAt <= endOfToday) {
+        if (!budgetCache.has(email.mailbox_id)) {
+          const budget = await remainingBudget(email.mailbox_id);
+          budgetCache.set(email.mailbox_id, budget?.daily ?? 0);
+        }
+        const remaining = budgetCache.get(email.mailbox_id)!;
+        if (remaining <= 0) {
+          skipped++;
+          continue;
+        }
+        budgetCache.set(email.mailbox_id, remaining - 1);
+      }
+
+      await pool.execute(
+        'UPDATE scheduled_emails SET scheduled_at = ? WHERE id = ?',
+        [scheduledAt, email.id],
+      );
+      const delay = Math.max(0, scheduledAt.getTime() - Date.now());
+      await sendQueue.add(
+        'send',
+        { scheduledEmailId: email.id },
+        { delay, jobId: `se-${email.id}` },
+      );
+      scheduled++;
+    }
+  }
+
+  return { scheduled, skipped };
 }
 
 async function pickMailboxForSequence(sequenceId: number): Promise<number> {
@@ -105,17 +178,20 @@ async function pickMailboxForSequence(sequenceId: number): Promise<number> {
   return rows[0].id as number;
 }
 
+/**
+ * Cancel all pending BullMQ jobs for a sequence. Looks up pending
+ * scheduled_email IDs from the DB and removes their jobs by deterministic ID
+ * (`se-<id>`), avoiding a full scan of the delayed queue.
+ */
 export async function cancelDelayedJobs(sequenceId: number): Promise<number> {
-  const jobs = await sendQueue.getDelayed(0, 5000);
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    "SELECT id FROM scheduled_emails WHERE sequence_id = ? AND status = 'pending'",
+    [sequenceId],
+  );
   let cancelled = 0;
-  for (const job of jobs) {
-    const seId = job.data?.scheduledEmailId as number | undefined;
-    if (!seId) continue;
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      'SELECT sequence_id FROM scheduled_emails WHERE id = ? LIMIT 1',
-      [seId],
-    );
-    if (rows[0]?.sequence_id === sequenceId) {
+  for (const row of rows as RowDataPacket[]) {
+    const job = await sendQueue.getJob(`se-${row.id}`);
+    if (job) {
       await job.remove();
       cancelled++;
     }
