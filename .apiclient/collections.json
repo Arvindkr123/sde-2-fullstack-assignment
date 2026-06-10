@@ -1,0 +1,350 @@
+{
+  "version": 1,
+  "root": {
+    "id": "root",
+    "type": "folder",
+    "name": "Requests",
+    "children": [
+      {
+        "id": "6af81e27-ddb1-4819-a107-7a81f4fae69c",
+        "type": "request",
+        "name": "login user",
+        "method": "POST",
+        "url": "http://localhost:4000/auth/login",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n  \"email\": \"arvind@gmail.com\",\n  \"password\": \"hello@132455\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781072677637-m8g920",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "ff5f78b8-dc41-454e-bcf5-2a65d1b59948",
+        "type": "request",
+        "name": "register user",
+        "method": "POST",
+        "url": "http://localhost:4000/auth/register",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n  \"email\": \"ram@gmail.com\",\n  \"password\": \"hello@132455\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781072391570-z0rxlw",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "880c8521-b338-458f-a38c-b680907394e6",
+        "type": "request",
+        "name": "get mailboxes",
+        "method": "GET",
+        "url": "http://localhost:4000/mailboxes",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "none",
+        "body": "",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781073308610-4qyzbd",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "487862e3-7679-4993-827e-e03dc124299c",
+        "type": "request",
+        "name": "add mailboxes",
+        "method": "POST",
+        "url": "http://localhost:4000/mailboxes",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781073438860-nowicw",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "233ef702-fe24-4445-a881-bef384407b0e",
+        "type": "request",
+        "name": "get mailboxes quota check",
+        "method": "GET",
+        "url": "http://localhost:4000/mailboxes/5/quota",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "none",
+        "body": "",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781073677199-a95x6i",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "c3ebf9a6-ef17-4251-b47d-b507c61f682a",
+        "type": "request",
+        "name": "get sequences",
+        "method": "GET",
+        "url": "http://localhost:4000/sequences",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781074443012-6tmuhl",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "f36e20ed-0ee9-41bd-a1ac-514008717a3b",
+        "type": "request",
+        "name": "add sequences",
+        "method": "POST",
+        "url": "http://localhost:4000/sequences",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781076351923-tke4wt",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "3c089551-02a7-4183-8bbd-dee3ef1847ad",
+        "type": "request",
+        "name": "get Sequence For User",
+        "method": "GET",
+        "url": "http://localhost:4000/sequences/4",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781074911278-3af3lb",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "f07522e1-fa14-4b39-b172-e51a0c98a134",
+        "type": "request",
+        "name": "get Sequence Steps",
+        "method": "GET",
+        "url": "http://localhost:4000/sequences/4/steps",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n   \"email\":\"arvind@gmail.com\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781075814267-1qpci9",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      },
+      {
+        "id": "435f6e4f-5484-4440-be21-10f50599dba5",
+        "type": "request",
+        "name": "add the sequences steps with sequence help of id",
+        "method": "POST",
+        "url": "http://localhost:4000/sequences/4/steps",
+        "headers": [
+          {
+            "enabled": true,
+            "key": "AUTHORIZATION",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImlhdCI6MTc4MTA3MjY3OCwiZXhwIjoxNzgxNjc3NDc4fQ.QQNOhsDRDYoHUWiV_Fno4fOj3SiyyxYc4zwQAcW79rQ"
+          }
+        ],
+        "params": [
+          {
+            "enabled": true,
+            "key": "",
+            "value": ""
+          }
+        ],
+        "bodyType": "json",
+        "body": "{\n  \"step_order\": 1,\n  \"delay_days\": 2,\n  \"subject\": \"traveling\",\n  \"body\": \"hello there\"\n}",
+        "graphqlQuery": "",
+        "graphqlVariables": "{\n  \n}",
+        "assertions": [
+          {
+            "id": "1781076742685-ddppxu",
+            "name": "Status is 200",
+            "type": "status",
+            "key": "",
+            "expected": "200"
+          }
+        ]
+      }
+    ]
+  }
+}

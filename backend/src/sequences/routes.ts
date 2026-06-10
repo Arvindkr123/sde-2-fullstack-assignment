@@ -8,6 +8,9 @@ import {
   createSequence,
   getSteps,
   getProspects,
+  addProspect,
+  updateProspectStatus,
+  deleteProspect,
   setSequenceStatus,
 } from './service';
 import { scheduleSequence, resumeSequence, cancelDelayedJobs } from './scheduler';
@@ -17,14 +20,20 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/', async (req: AuthedRequest, res) => {
-  res.json(await listSequencesForUser(req.userId!));
+  const sequences = await listSequencesForUser(req.userId!);
+  if (sequences.length === 0) {
+    return res.json({
+      message: "no sequences found this user"
+    })
+  }
+  res.json(sequences);
 });
 
 router.post('/', async (req: AuthedRequest, res) => {
   const parsed = z.object({ name: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
   const id = await createSequence(req.userId!, parsed.data.name);
-  res.status(201).json({ id });
+  res.status(201).json({ message:"sequences coreated", id });
 });
 
 router.get('/:id', async (req: AuthedRequest, res) => {
@@ -40,6 +49,12 @@ router.get('/:id', async (req: AuthedRequest, res) => {
 router.get('/:id/steps', async (req: AuthedRequest, res) => {
   const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
   if (!seq) return res.status(404).json({ error: 'not_found' });
+  const sequences_steps = await getSteps(seq.id);
+  if(sequences_steps.length===0){
+    return res.json({
+      message:"no sequences steps found for the sequence id "+req.params.id
+    })
+  }
   res.json(await getSteps(seq.id));
 });
 
@@ -61,6 +76,46 @@ router.post('/:id/steps', async (req: AuthedRequest, res) => {
     [seq.id, step_order, delay_days, subject, body],
   );
   res.status(201).json({ id: result.insertId });
+});
+
+const prospectSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(1).optional(),
+});
+
+router.get('/:id/prospects', async (req: AuthedRequest, res) => {
+  const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
+  if (!seq) return res.status(404).json({ error: 'not_found' });
+  const prospects = await getProspects(seq.id);
+  if (prospects.length === 0) return res.json({ message: 'no prospects found for sequence ' + req.params.id });
+  res.json(prospects);
+});
+
+router.post('/:id/prospects', async (req: AuthedRequest, res) => {
+  const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
+  if (!seq) return res.status(404).json({ error: 'not_found' });
+  const parsed = prospectSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  const id = await addProspect(seq.id, parsed.data.email, parsed.data.name ?? null);
+  res.status(201).json({ id });
+});
+
+router.patch('/:id/prospects/:pid', async (req: AuthedRequest, res) => {
+  const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
+  if (!seq) return res.status(404).json({ error: 'not_found' });
+  const parsed = z.object({ status: z.enum(['active', 'unsubscribed', 'bounced']) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  const updated = await updateProspectStatus(Number(req.params.pid), seq.id, parsed.data.status);
+  if (!updated) return res.status(404).json({ error: 'not_found' });
+  res.json({ ok: true });
+});
+
+router.delete('/:id/prospects/:pid', async (req: AuthedRequest, res) => {
+  const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
+  if (!seq) return res.status(404).json({ error: 'not_found' });
+  const deleted = await deleteProspect(Number(req.params.pid), seq.id);
+  if (!deleted) return res.status(404).json({ error: 'not_found' });
+  res.json({ ok: true });
 });
 
 router.get('/:id/scheduled-emails', async (req: AuthedRequest, res) => {

@@ -7,3 +7,5 @@ build
 *.log
 .vite
 coverage
+mysql/*
+docker-compose.yaml

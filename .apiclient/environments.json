@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "activeEnvironmentId": "1781072211969-6q5zr2",
+  "environments": [
+    {
+      "id": "1781072211969-6q5zr2",
+      "name": "user-emails-logs",
+      "variables": {}
+    }
+  ]
+}

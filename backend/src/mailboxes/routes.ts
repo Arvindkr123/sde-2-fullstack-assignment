@@ -13,6 +13,11 @@ router.get('/', async (req: AuthedRequest, res) => {
     'SELECT id, email, daily_limit, hourly_limit, created_at FROM mailboxes WHERE user_id = ? ORDER BY id',
     [req.userId],
   );
+  if(rows.length===0){
+    return res.status(200).json({
+      message:"no mailboxes found for this user "
+    })
+  }
   res.json(rows);
 });
 

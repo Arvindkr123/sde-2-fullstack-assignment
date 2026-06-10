@@ -68,6 +68,41 @@ export async function getProspects(sequenceId: number): Promise<Prospect[]> {
   return rows as Prospect[];
 }
 
+export async function addProspect(
+  sequenceId: number,
+  email: string,
+  name: string | null,
+): Promise<number> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    "INSERT INTO prospects (sequence_id, email, name, status) VALUES (?, ?, ?, 'active')",
+    [sequenceId, email, name ?? null],
+  );
+  return result.insertId;
+}
+
+export async function updateProspectStatus(
+  prospectId: number,
+  sequenceId: number,
+  status: Prospect['status'],
+): Promise<boolean> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    'UPDATE prospects SET status = ? WHERE id = ? AND sequence_id = ?',
+    [status, prospectId, sequenceId],
+  );
+  return result.affectedRows > 0;
+}
+
+export async function deleteProspect(
+  prospectId: number,
+  sequenceId: number,
+): Promise<boolean> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    'DELETE FROM prospects WHERE id = ? AND sequence_id = ?',
+    [prospectId, sequenceId],
+  );
+  return result.affectedRows > 0;
+}
+
 export async function setSequenceStatus(
   sequenceId: number,
   status: Sequence['status'],
