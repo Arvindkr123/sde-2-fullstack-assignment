@@ -62,7 +62,30 @@ Alternative considered: `node:test` (built-in). Rejected because mock/spy suppor
 
 ---
 
+## Frontend implementation
+
+### Tech stack
+React 18 + Vite 5 + TypeScript 5, react-router-dom v6. Vite was chosen because it starts in milliseconds (vs CRA's seconds), has first-class TypeScript support, and the proxy config (`vite.config.ts`) requires a single `server.proxy` entry to forward `/api` to `localhost:4000` — no extra package needed.
+
+### Authentication
+JWT stored in `localStorage`, sent as `Authorization: Bearer <token>` on every request. A `RequireAuth` wrapper in `App.tsx` gates all routes — unauthenticated users are redirected to `/login`. Register page added so new users can create accounts without a seed script.
+
+### Dark theme
+`--bg: #0f172a`, `--surface: #1e293b`, `--primary: #6366f1` as CSS custom properties. `color-scheme: dark` on all native inputs/selects ensures browser-rendered controls (dropdowns, date pickers) respect the theme without requiring custom replacements.
+
+### Scheduling new prospects onto an active sequence
+Once a sequence is `active`, the draft-only Schedule button disappears. We added "Schedule New" logic: compute `scheduledProspectIds` from the already-loaded `emails` state, diff against `seq.prospects`, and show a "Schedule New" button only when there are active prospects not yet in the queue. The backend was made idempotent (finding 9 above) so calling the schedule endpoint again is safe — it only inserts rows for the new prospects.
+
+### Send Logs section
+`GET /sequences/:id/logs` was added to surface the `send_logs` table (which the worker was already writing to) in the UI. The table JOIN returns denormalised rows (prospect email/name, step subject/order, mailbox email) so the frontend can display a readable log without extra round-trips. Logs refresh on Schedule/Pause/Resume and have a manual Refresh button.
+
+### Steps table body column
+The steps table was restructured to show the email body inline (with `white-space: pre-line` to preserve line breaks), matching the Adminer database view the spec referenced. Steps are now displayed full-width above prospects so the body column has room to wrap.
+
+---
+
 ## Consciously not fixed
 
 - **Broad CORS** (`app.use(cors())`): Allows any origin. For a local dev tool this is acceptable; tightening it requires knowing the deployed frontend origin, which depends on deployment config outside this repo.
 - **`attempts` counter incremented on rate-limit rejections:** The counter increments before the rate-limit check, so it grows faster than actual send attempts. This inflates the metric but doesn't cause incorrect behaviour. Fixing it would change the semantics of `attempts` (currently "processing attempts" vs "send attempts") — left as-is to avoid changing observable behaviour without a spec decision.
+- **No pagination on logs/scheduled-emails:** Both endpoints accept `limit`/`offset` query params but the frontend fetches the first 200 rows only. For long-running sequences this is fine as a first pass; virtual scrolling or cursor-based pagination would be the production fix.

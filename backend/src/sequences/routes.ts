@@ -132,10 +132,39 @@ router.get('/:id/scheduled-emails', async (req: AuthedRequest, res, next) => {
   }
 });
 
+router.get('/:id/logs', async (req: AuthedRequest, res, next) => {
+  try {
+    const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
+    if (!seq) return res.status(404).json({ error: 'not_found' });
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 200, 500);
+    const offset = parseInt(req.query.offset as string, 10) || 0;
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT sl.id, sl.scheduled_email_id, sl.status, sl.message, sl.created_at,
+              se.prospect_id, se.step_id,
+              p.email  AS prospect_email,
+              p.name   AS prospect_name,
+              st.subject AS step_subject,
+              st.step_order,
+              m.email  AS mailbox_email
+         FROM send_logs sl
+         JOIN scheduled_emails se ON se.id = sl.scheduled_email_id
+         JOIN prospects p         ON p.id  = se.prospect_id
+         JOIN sequence_steps st   ON st.id = se.step_id
+         JOIN mailboxes m         ON m.id  = sl.mailbox_id
+        WHERE se.sequence_id = ?
+        ORDER BY sl.created_at DESC
+        LIMIT ? OFFSET ?`,
+      [seq.id, limit, offset],
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/:id/schedule', async (req: AuthedRequest, res) => {
   const seq = await getSequenceForUser(Number(req.params.id), req.userId!);
   if (!seq) return res.status(404).json({ error: 'not_found' });
-  if (seq.status === 'completed') return res.status(409).json({ error: 'sequence_completed' });
   const result = await scheduleSequence({ sequenceId: seq.id });
   res.json(result);
 });

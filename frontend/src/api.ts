@@ -75,6 +75,21 @@ export interface ScheduledEmail {
   sent_at: string | null;
 }
 
+export interface SendLog {
+  id: number;
+  scheduled_email_id: number;
+  status: string;
+  message: string | null;
+  created_at: string;
+  prospect_id: number;
+  step_id: number;
+  prospect_email: string;
+  prospect_name: string | null;
+  step_subject: string;
+  step_order: number;
+  mailbox_email: string;
+}
+
 export interface QuotaSnapshot {
   mailboxId: number;
   email: string;
@@ -144,6 +159,9 @@ export const api = {
 
   getScheduledEmails: (seqId: number) =>
     request<ScheduledEmail[]>(`/sequences/${seqId}/scheduled-emails`),
+
+  getLogs: (seqId: number, limit = 200) =>
+    request<SendLog[]>(`/sequences/${seqId}/logs?limit=${limit}`),
 
   getMailboxes: () => request<Mailbox[]>('/mailboxes'),
 

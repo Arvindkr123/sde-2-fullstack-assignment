@@ -30,12 +30,13 @@ export async function scheduleSequence(opts: ScheduleOpts): Promise<ScheduleResu
   const prospects = await getProspects(sequenceId);
   const mailboxId = await pickMailboxForSequence(sequenceId);
 
-  // Prospects already in the queue (any status) — skip them so we never double-schedule.
-  const [alreadyScheduled] = await pool.execute<RowDataPacket[]>(
+  // Skip prospects that already have scheduled emails so re-calling on an
+  // active sequence only queues newly-added prospects, not duplicates.
+  const [existingRows] = await pool.execute<RowDataPacket[]>(
     'SELECT DISTINCT prospect_id FROM scheduled_emails WHERE sequence_id = ?',
     [sequenceId],
   );
-  const alreadyScheduledIds = new Set((alreadyScheduled as RowDataPacket[]).map(r => r.prospect_id as number));
+  const alreadyScheduled = new Set((existingRows as RowDataPacket[]).map(r => r.prospect_id as number));
 
   let scheduled = 0;
   let skipped = 0;
@@ -45,7 +46,7 @@ export async function scheduleSequence(opts: ScheduleOpts): Promise<ScheduleResu
       skipped++;
       continue;
     }
-    if (alreadyScheduledIds.has(prospect.id)) {
+    if (alreadyScheduled.has(prospect.id)) {
       skipped++;
       continue;
     }
@@ -82,7 +83,15 @@ export async function scheduleSequence(opts: ScheduleOpts): Promise<ScheduleResu
     }
   }
 
-  await setSequenceStatus(sequenceId, 'active');
+  // Only transition draft→active; don't disturb an already-active/paused sequence.
+  const [seqRows] = await pool.execute<RowDataPacket[]>(
+    'SELECT status FROM sequences WHERE id = ? LIMIT 1',
+    [sequenceId],
+  );
+  if ((seqRows[0] as RowDataPacket)?.status === 'draft') {
+    await setSequenceStatus(sequenceId, 'active');
+  }
+
   return { scheduled, skipped };
 }
 

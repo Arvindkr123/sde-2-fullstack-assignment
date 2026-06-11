@@ -4,8 +4,8 @@ import { api, setToken } from '../api';
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('alice@test.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 

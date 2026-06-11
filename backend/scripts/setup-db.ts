@@ -34,7 +34,9 @@ async function main() {
     await conn.query(schema);
 
     console.log('Seeding users...');
-    const hash = await bcrypt.hash('password123', 10);
+    const seedPassword = process.env.SEED_PASSWORD;
+    if (!seedPassword) throw new Error('SEED_PASSWORD env var is required to run setup-db');
+    const hash = await bcrypt.hash(seedPassword, 10);
     await conn.query(
       'INSERT INTO users (email, password_hash) VALUES (?, ?), (?, ?)',
       ['alice@test.com', hash, 'bob@test.com', hash]
@@ -65,8 +67,8 @@ async function main() {
     console.log(`Enqueued ${pendingRows.length} job(s).`);
 
     console.log('Done! Seed accounts:');
-    console.log('  alice@test.com / password123  — 3 mailboxes, 2 sequences');
-    console.log('  bob@test.com   / password123  — 1 mailbox,  0 sequences');
+    console.log(`  alice@test.com / ${seedPassword}  — 3 mailboxes, 2 sequences`);
+    console.log(`  bob@test.com   / ${seedPassword}  — 1 mailbox,  0 sequences`);
   } finally {
     await conn.end();
   }

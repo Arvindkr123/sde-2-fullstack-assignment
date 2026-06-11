@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, FormEvent } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { api, type SequenceDetail as SeqDetail, type Prospect, type ScheduledEmail } from '../api';
+import { api, type SequenceDetail as SeqDetail, type Prospect, type ScheduledEmail, type SendLog } from '../api';
 
 const SE_STATUS_COLOR: Record<ScheduledEmail['status'], string> = {
   pending:    '#f1f5f9',
@@ -53,7 +53,6 @@ export default function SequenceDetail() {
   const location = useLocation();
   const seqId = Number(id);
 
-  // Hint passed via navigate() state (e.g. "add prospects first")
   const navHint = (location.state as { hint?: string } | null)?.hint ?? '';
 
   const [seq, setSeq] = useState<SeqDetail | null>(null);
@@ -75,6 +74,9 @@ export default function SequenceDetail() {
   const [emailsLoading, setEmailsLoading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [logs, setLogs] = useState<SendLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
   const load = useCallback(async () => {
     try {
       const data = await api.getSequence(seqId);
@@ -92,43 +94,53 @@ export default function SequenceDetail() {
       const res = await api.getScheduledEmails(seqId);
       setEmails(res);
     } catch {
-      // non-fatal — emails section shows empty
+      // non-fatal
     } finally {
       setEmailsLoading(false);
     }
   }, [seqId]);
 
+  const loadLogs = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const res = await api.getLogs(seqId);
+      setLogs(res);
+    } catch {
+      // non-fatal
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [seqId]);
+
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { void loadEmails(); }, [loadEmails]);
+  useEffect(() => { void loadLogs(); }, [loadLogs]);
 
-  // Auto-refresh scheduled emails every 8 s while sequence is active/processing.
   useEffect(() => {
     if (!seq) return;
     if (seq.status === 'active') {
       pollRef.current = setInterval(() => void loadEmails(), 8000);
     }
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [seq?.status, loadEmails]);
 
   async function handleSchedule() {
     setActionLoading(true);
-    try { await api.scheduleSequence(seqId); await Promise.all([load(), loadEmails()]); }
+    try { await api.scheduleSequence(seqId); await Promise.all([load(), loadEmails(), loadLogs()]); }
     catch (err) { setError((err as Error).message); }
     finally { setActionLoading(false); }
   }
 
   async function handlePause() {
     setActionLoading(true);
-    try { await api.pauseSequence(seqId); await Promise.all([load(), loadEmails()]); }
+    try { await api.pauseSequence(seqId); await Promise.all([load(), loadEmails(), loadLogs()]); }
     catch (err) { setError((err as Error).message); }
     finally { setActionLoading(false); }
   }
 
   async function handleResume() {
     setActionLoading(true);
-    try { await api.resumeSequence(seqId); await Promise.all([load(), loadEmails()]); }
+    try { await api.resumeSequence(seqId); await Promise.all([load(), loadEmails(), loadLogs()]); }
     catch (err) { setError((err as Error).message); }
     finally { setActionLoading(false); }
   }
@@ -140,16 +152,8 @@ export default function SequenceDetail() {
     if (!stepSubject.trim() || !stepBody.trim() || isNaN(order) || isNaN(delay)) return;
     setAddingStep(true);
     try {
-      await api.addStep(seqId, {
-        step_order: order,
-        delay_days: delay,
-        subject: stepSubject.trim(),
-        body: stepBody.trim(),
-      });
-      setStepOrder('');
-      setStepDelay('0');
-      setStepSubject('');
-      setStepBody('');
+      await api.addStep(seqId, { step_order: order, delay_days: delay, subject: stepSubject.trim(), body: stepBody.trim() });
+      setStepOrder(''); setStepDelay('0'); setStepSubject(''); setStepBody('');
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -164,8 +168,7 @@ export default function SequenceDetail() {
     setAddingProspect(true);
     try {
       await api.addProspect(seqId, { email: prospectEmail.trim(), name: prospectName.trim() || undefined });
-      setProspectEmail('');
-      setProspectName('');
+      setProspectEmail(''); setProspectName('');
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -188,16 +191,14 @@ export default function SequenceDetail() {
   if (!seq) return <div className="page"><div className="error-msg">{error || 'Not found'}</div></div>;
 
   const activeProspects = seq.prospects.filter(p => p.status === 'active').length;
-  // Prospects that have no scheduled email yet (newly added after initial schedule)
+  const canSchedule = seq.steps.length > 0 && activeProspects > 0;
+
   const scheduledProspectIds = new Set(emails.map(e => e.prospect_id));
-  const newActiveProspects = seq.prospects.filter(
+  const newUnscheduledActive = seq.prospects.filter(
     p => p.status === 'active' && !scheduledProspectIds.has(p.id),
   ).length;
-  const canSchedule = seq.steps.length > 0 && activeProspects > 0;
-  // For active/paused: only enable if there are new unscheduled prospects
-  const canScheduleNew = seq.steps.length > 0 && newActiveProspects > 0;
+  const canScheduleNew = seq.steps.length > 0 && newUnscheduledActive > 0;
 
-  // Build lookup maps for client-side join
   const stepMap = Object.fromEntries(seq.steps.map(s => [s.id, s]));
   const prospectMap = Object.fromEntries(seq.prospects.map(p => [p.id, p]));
 
@@ -206,21 +207,20 @@ export default function SequenceDetail() {
 
   return (
     <div className="page">
+
+      {/* ── Header ── */}
       <div className="page-header">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 className="page-title">{seq.name}</h1>
             <StatusBadge status={seq.status} />
           </div>
-          <button
-            className="btn-secondary btn-sm"
-            style={{ marginTop: 6 }}
-            onClick={() => navigate('/sequences')}
-          >
+          <button className="btn-secondary btn-sm" style={{ marginTop: 6 }} onClick={() => navigate('/sequences')}>
             ← Back
           </button>
         </div>
-        <div className="row-actions" style={{ flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
+
+        <div className="row-actions">
           {seq.status === 'draft' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
               <button
@@ -237,37 +237,48 @@ export default function SequenceDetail() {
                     ? 'Add steps and prospects first'
                     : seq.steps.length === 0
                     ? 'Add at least one step first'
-                    : 'Add at least one active prospect first'}
-                </span>
-              )}
-            </div>
-          )}
-          {(seq.status === 'active' || seq.status === 'paused') && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-              <button
-                className="btn-secondary btn-sm"
-                onClick={handleSchedule}
-                disabled={actionLoading || !canScheduleNew}
-                title={!canScheduleNew ? 'No new unscheduled prospects' : 'Queue emails for newly added prospects'}
-              >
-                + Schedule new prospects
-              </button>
-              {newActiveProspects > 0 && (
-                <span style={{ fontSize: 11, color: 'var(--success)' }}>
-                  {newActiveProspects} new prospect{newActiveProspects > 1 ? 's' : ''} ready to queue
+                    : 'Add at least one prospect first'}
                 </span>
               )}
             </div>
           )}
           {seq.status === 'active' && (
-            <button className="btn-secondary" onClick={handlePause} disabled={actionLoading}>
-              Pause
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {canScheduleNew && (
+                  <button className="btn-primary" onClick={handleSchedule} disabled={actionLoading}>
+                    Schedule New
+                  </button>
+                )}
+                <button className="btn-secondary" onClick={handlePause} disabled={actionLoading}>
+                  Pause
+                </button>
+              </div>
+              {canScheduleNew && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  {newUnscheduledActive} new prospect{newUnscheduledActive !== 1 ? 's' : ''} ready to schedule
+                </span>
+              )}
+            </div>
           )}
           {seq.status === 'paused' && (
-            <button className="btn-primary" onClick={handleResume} disabled={actionLoading}>
-              Resume
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {canScheduleNew && (
+                  <button className="btn-secondary" onClick={handleSchedule} disabled={actionLoading}>
+                    Schedule New
+                  </button>
+                )}
+                <button className="btn-primary" onClick={handleResume} disabled={actionLoading}>
+                  Resume
+                </button>
+              </div>
+              {canScheduleNew && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  {newUnscheduledActive} new prospect{newUnscheduledActive !== 1 ? 's' : ''} ready to schedule
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -283,163 +294,163 @@ export default function SequenceDetail() {
         </div>
       )}
 
-      <div className="detail-grid">
-        {/* Steps */}
-        <div>
-          <div className="section-title">Steps ({seq.steps.length})</div>
+      {/* ── Steps ── */}
+      <div>
+        <div className="section-title">Steps ({seq.steps.length})</div>
 
-          <form className="card" onSubmit={handleAddStep} style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <div style={{ flex: '0 0 70px' }}>
-                <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Order #</label>
-                <input
-                  type="number"
-                  min={1}
-                  placeholder={String(seq.steps.length + 1)}
-                  value={stepOrder}
-                  onChange={e => setStepOrder(e.target.value)}
-                  required
-                  style={{ marginTop: 4 }}
-                />
-              </div>
-              <div style={{ flex: '0 0 80px' }}>
-                <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Delay (days)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={stepDelay}
-                  onChange={e => setStepDelay(e.target.value)}
-                  required
-                  style={{ marginTop: 4 }}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Subject</label>
-                <input
-                  type="text"
-                  placeholder="Email subject…"
-                  value={stepSubject}
-                  onChange={e => setStepSubject(e.target.value)}
-                  required
-                  style={{ marginTop: 4 }}
-                />
-              </div>
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Body</label>
-              <textarea
-                placeholder="Email body…"
-                value={stepBody}
-                onChange={e => setStepBody(e.target.value)}
-                required
-                rows={3}
-                style={{ marginTop: 4, resize: 'vertical' }}
+        <form className="card" onSubmit={handleAddStep} style={{ marginBottom: 8 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+            <div style={{ flex: '0 0 70px' }}>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Order #</label>
+              <input
+                type="number" min={1}
+                placeholder={String(seq.steps.length + 1)}
+                value={stepOrder}
+                onChange={e => setStepOrder(e.target.value)}
+                required style={{ marginTop: 4 }}
               />
             </div>
-            <button type="submit" className="btn-primary btn-sm" disabled={addingStep}>
-              {addingStep ? 'Adding…' : '+ Add Step'}
-            </button>
-          </form>
-
-          <div className="card" style={{ padding: 0 }}>
-            {seq.steps.length === 0 ? (
-              <div className="empty-msg">No steps yet.</div>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Delay</th>
-                    <th>Subject</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {seq.steps.map(step => (
-                    <tr key={step.id}>
-                      <td>{step.step_order}</td>
-                      <td>{step.delay_days === 0 ? 'Immediate' : `+${step.delay_days}d`}</td>
-                      <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          title={step.subject}>
-                        {step.subject}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <div style={{ flex: '0 0 90px' }}>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Delay (days)</label>
+              <input
+                type="number" min={0}
+                value={stepDelay}
+                onChange={e => setStepDelay(e.target.value)}
+                required style={{ marginTop: 4 }}
+              />
+            </div>
+            <div style={{ flex: '1 1 220px' }}>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Subject</label>
+              <input
+                type="text" placeholder="Email subject…"
+                value={stepSubject}
+                onChange={e => setStepSubject(e.target.value)}
+                required style={{ marginTop: 4 }}
+              />
+            </div>
           </div>
-        </div>
-
-        {/* Prospects */}
-        <div>
-          <div className="section-title">Prospects ({seq.prospects.length})</div>
-          <form className="card" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }} onSubmit={handleAddProspect}>
-            <input
-              placeholder="email@example.com"
-              type="email"
-              value={prospectEmail}
-              onChange={e => setProspectEmail(e.target.value)}
-              style={{ flex: '1 1 160px' }}
-              required
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Body</label>
+            <textarea
+              placeholder="Email body…"
+              value={stepBody}
+              onChange={e => setStepBody(e.target.value)}
+              required rows={3}
+              style={{ marginTop: 4, resize: 'vertical' }}
             />
-            <input
-              placeholder="Name (optional)"
-              value={prospectName}
-              onChange={e => setProspectName(e.target.value)}
-              style={{ flex: '1 1 120px' }}
-            />
-            <button type="submit" className="btn-primary btn-sm" disabled={addingProspect}>
-              Add
-            </button>
-          </form>
-
-          <div className="card" style={{ padding: 0 }}>
-            {seq.prospects.length === 0 ? (
-              <div className="empty-msg">No prospects yet.</div>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Email</th>
-                    <th>Status</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {seq.prospects.map(p => (
-                    <tr key={p.id}>
-                      <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.name ? `${p.name} <${p.email}>` : p.email}
-                      </td>
-                      <td>
-                        <select
-                          value={p.status}
-                          onChange={e => handleProspectStatus(p.id, e.target.value as Prospect['status'])}
-                          style={{ fontSize: 12, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text)' }}
-                        >
-                          <option value="active">active</option>
-                          <option value="unsubscribed">unsubscribed</option>
-                          <option value="bounced">bounced</option>
-                        </select>
-                      </td>
-                      <td>
-                        <button
-                          className="btn-danger btn-sm"
-                          onClick={() => handleDeleteProspect(p.id)}
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
           </div>
+          <button type="submit" className="btn-primary btn-sm" disabled={addingStep}>
+            {addingStep ? 'Adding…' : '+ Add Step'}
+          </button>
+        </form>
+
+        <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+          {seq.steps.length === 0 ? (
+            <div className="empty-msg">No steps yet.</div>
+          ) : (
+            <table style={{ tableLayout: 'fixed', width: '100%' }}>
+              <colgroup>
+                <col style={{ width: 46 }} />
+                <col style={{ width: 100 }} />
+                <col style={{ width: '30%' }} />
+                <col />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Delay</th>
+                  <th>Subject</th>
+                  <th>Body</th>
+                </tr>
+              </thead>
+              <tbody>
+                {seq.steps.map(step => (
+                  <tr key={step.id}>
+                    <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{step.step_order}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>
+                      {step.delay_days === 0 ? 'Immediate' : `+${step.delay_days} day${step.delay_days !== 1 ? 's' : ''}`}
+                    </td>
+                    <td style={{ fontWeight: 500 }}>{step.subject}</td>
+                    <td style={{ whiteSpace: 'pre-line', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                      {step.body}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* Scheduled Emails */}
+      {/* ── Prospects ── */}
+      <div style={{ marginTop: 8 }}>
+        <div className="section-title">Prospects ({seq.prospects.length})</div>
+
+        <form className="card" onSubmit={handleAddProspect}
+          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
+          <div style={{ flex: '1 1 200px' }}>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: 4 }}>Email</label>
+            <input
+              type="email" placeholder="email@example.com"
+              value={prospectEmail}
+              onChange={e => setProspectEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div style={{ flex: '1 1 160px' }}>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: 4 }}>Name (optional)</label>
+            <input
+              placeholder="Jane Doe"
+              value={prospectName}
+              onChange={e => setProspectName(e.target.value)}
+            />
+          </div>
+          <button type="submit" className="btn-primary btn-sm" disabled={addingProspect} style={{ flexShrink: 0 }}>
+            {addingProspect ? 'Adding…' : '+ Add Prospect'}
+          </button>
+        </form>
+
+        <div className="card" style={{ padding: 0 }}>
+          {seq.prospects.length === 0 ? (
+            <div className="empty-msg">No prospects yet.</div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Email / Name</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {seq.prospects.map(p => (
+                  <tr key={p.id}>
+                    <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.name ? `${p.name} <${p.email}>` : p.email}
+                    </td>
+                    <td>
+                      <select
+                        value={p.status}
+                        onChange={e => handleProspectStatus(p.id, e.target.value as Prospect['status'])}
+                        style={{ fontSize: 12, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text)' }}
+                      >
+                        <option value="active">active</option>
+                        <option value="unsubscribed">unsubscribed</option>
+                        <option value="bounced">bounced</option>
+                      </select>
+                    </td>
+                    <td>
+                      <button className="btn-danger btn-sm" onClick={() => handleDeleteProspect(p.id)}>✕</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* ── Scheduled Emails ── */}
       <div style={{ marginTop: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <div className="section-title" style={{ margin: 0 }}>
@@ -527,6 +538,78 @@ export default function SequenceDetail() {
           </div>
         )}
       </div>
+
+      {/* ── Send Logs ── */}
+      <div style={{ marginTop: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <div className="section-title" style={{ margin: 0 }}>Send Logs ({logs.length})</div>
+          <span style={{ flex: 1 }} />
+          <button className="btn-secondary btn-sm" onClick={() => void loadLogs()} disabled={logsLoading}>
+            {logsLoading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+
+        {logs.length === 0 ? (
+          <div className="card">
+            <div className="empty-msg" style={{ padding: '16px 0' }}>No log entries yet.</div>
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Status</th>
+                  <th>Prospect</th>
+                  <th>Step</th>
+                  <th>Mailbox</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map(log => (
+                  <tr key={log.id}>
+                    <td style={{ whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: 12 }}>
+                      {fmt(log.created_at)}
+                    </td>
+                    <td>
+                      <span style={{
+                        display: 'inline-block', fontSize: 11, fontWeight: 600,
+                        padding: '2px 8px', borderRadius: 999,
+                        textTransform: 'uppercase', letterSpacing: '0.03em',
+                        background: log.status === 'sent'         ? 'rgba(34,197,94,.15)'
+                                  : log.status === 'failed'       ? 'rgba(239,68,68,.15)'
+                                  : log.status === 'rate_limited' ? 'rgba(245,158,11,.15)'
+                                  : 'rgba(148,163,184,.12)',
+                        color: log.status === 'sent'         ? '#4ade80'
+                             : log.status === 'failed'       ? 'var(--danger)'
+                             : log.status === 'rate_limited' ? '#fbbf24'
+                             : 'var(--text-muted)',
+                      }}>
+                        {log.status}
+                      </span>
+                    </td>
+                    <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        title={log.prospect_email}>
+                      {log.prospect_name ?? log.prospect_email}
+                    </td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                      #{log.step_order} — {log.step_subject.slice(0, 28)}{log.step_subject.length > 28 ? '…' : ''}
+                    </td>
+                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{log.mailbox_email}</td>
+                    <td style={{ fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                  color: log.status === 'failed' ? 'var(--danger)' : 'var(--text-muted)' }}
+                        title={log.message ?? ''}>
+                      {log.message ?? ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

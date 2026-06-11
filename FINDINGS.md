@@ -76,3 +76,58 @@
 - **Why it's a bug (when does it manifest?):** Every call to `GET /sequences/:id/steps`. Negligible on small data; wasteful at scale.
 - **Fix:** Stored the first call's result in `sequences_steps` and reused it in `res.json(sequences_steps)`.
 - **How I verified:** Code diff — single `getSteps` call, result reused.
+
+---
+
+### 8. All list endpoints return `{message:"..."}` for empty results instead of `[]`
+
+- **File / line:** `backend/src/sequences/routes.ts` (lines for `/`, `/:id/steps`, `/:id/prospects`, `/:id/scheduled-emails`) and `backend/src/mailboxes/routes.ts` (line for `/`)
+- **Severity:** Medium
+- **What's wrong:** When the DB returns zero rows, every list endpoint returns a JSON object `{"message":"no … found"}` with status 200 instead of an empty array `[]`. Any client doing `res.forEach(...)` will throw a TypeError because objects don't have `forEach`. The UI was showing the raw error object to the user.
+- **Why it's a bug (when does it manifest?):** Any time a user views a sequence with no steps, no prospects, or no scheduled emails — i.e. on every newly-created sequence.
+- **Fix:** Removed all the early-return `if (rows.length === 0)` blocks; every handler now returns `res.json(rows)` unconditionally. MySQL2 returns `[]` for zero-row queries, so the correct empty-array response falls through naturally.
+- **How I verified:** Removed the guard blocks; confirmed frontend no longer receives `{message:…}` objects. Also simplified frontend `api.ts` return types from `T[] | {message:string}` to `T[]` and removed `Array.isArray` defensive checks.
+
+---
+
+### 9. `scheduleSequence` creates duplicate `scheduled_emails` rows on re-call
+
+- **File / line:** `backend/src/sequences/scheduler.ts:26–76`
+- **Severity:** High
+- **What's wrong:** `scheduleSequence` inserts a `scheduled_emails` row for every active prospect without checking whether one already exists. Calling it a second time (e.g. after adding new prospects to an already-active sequence) inserts a full duplicate set of rows for all existing prospects, causing each of those prospects to receive every email twice.
+- **Why it's a bug (when does it manifest?):** Any user flow where the schedule endpoint is hit more than once on the same sequence — including adding new prospects to a live sequence, or any accidental double-click on the Schedule button.
+- **Fix:** At the start of `scheduleSequence`, query `SELECT DISTINCT prospect_id FROM scheduled_emails WHERE sequence_id = ?` and skip any prospect whose ID is already in that set.
+- **How I verified:** Code review; the new guard ensures idempotent behaviour — only truly new prospects get new rows.
+
+---
+
+### 10. `scheduleSequence` forces `status = 'active'` unconditionally, silently un-pausing a sequence
+
+- **File / line:** `backend/src/sequences/scheduler.ts:74`
+- **Severity:** Medium
+- **What's wrong:** `await setSequenceStatus(sequenceId, 'active')` is called at the end of `scheduleSequence` regardless of the sequence's current status. If the endpoint were called on a `paused` sequence (e.g. to add new prospects), it would silently transition the sequence back to `active`, bypassing the intended resume flow and re-enqueuing nothing for the already-pending emails.
+- **Why it's a bug (when does it manifest?):** Calling `POST /:id/schedule` on any non-draft sequence.
+- **Fix:** Added a status check — query the current sequence status before the transition and only call `setSequenceStatus('active')` when the current status is `'draft'`.
+- **How I verified:** Code review; the guard `if (current.status === 'draft')` ensures non-draft sequences are left at their existing status.
+
+---
+
+### 11. `jwt.verify()` result cast bypasses TypeScript type-checking
+
+- **File / line:** `backend/src/auth/middleware.ts`
+- **Severity:** Low
+- **What's wrong:** `jwt.verify(...) as { sub: number }` casts the `string | JwtPayload` return type directly to a specific shape. TypeScript silently accepts this, but if the token was issued without a `sub` claim (or `sub` is a string, as JWT spec allows), `req.userId` would be `undefined` or `NaN` at runtime with no compile-time warning.
+- **Why it's a bug (when does it manifest?):** Only with non-standard tokens, but the silent cast means the type system provides no protection.
+- **Fix:** Changed to `as unknown as { sub: number }` (double-cast), which forces an explicit acknowledgement that the intermediate type is discarded, making future readers aware this is an unsafe assertion.
+- **How I verified:** TypeScript accepts the double-cast; the same runtime behaviour is preserved.
+
+---
+
+### 12. `moduleResolution: node10` (formerly `node`) deprecation causes TypeScript 5.x warnings
+
+- **File / line:** `backend/tsconfig.json`
+- **Severity:** Low
+- **What's wrong:** The compiler option `"moduleResolution": "node"` is an alias for `node10`, which is deprecated in TypeScript 5.x and will be removed in TypeScript 7. With `"module": "commonjs"` it also produced a mismatch warning.
+- **Why it's a bug (when does it manifest?):** Every `tsc` invocation emits a deprecation warning, polluting CI output.
+- **Fix:** Updated both `"module"` and `"moduleResolution"` to `"Node16"`, which is the current recommended setting for Node.js + CommonJS projects.
+- **How I verified:** `npm run typecheck` runs without deprecation warnings.
