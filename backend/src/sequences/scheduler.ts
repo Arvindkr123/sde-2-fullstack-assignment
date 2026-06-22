@@ -91,7 +91,6 @@ export async function scheduleSequence(opts: ScheduleOpts): Promise<ScheduleResu
   if ((seqRows[0] as RowDataPacket)?.status === 'draft') {
     await setSequenceStatus(sequenceId, 'active');
   }
-
   return { scheduled, skipped };
 }
 
@@ -255,6 +254,42 @@ export async function scheduleStepForExistingProspects(opts: {
   }
 
   return { scheduled, skipped };
+}
+
+/**
+ * Find scheduled_emails stuck in 'processing' for longer than the given
+ * threshold (default 5 min) — meaning the worker process crashed after
+ * marking them processing but before finishing the send — and reset them
+ * back to 'pending' so they get retried.
+ *
+ * Safe to call on startup and on a periodic interval.
+ */
+export async function recoverStuckJobs(thresholdMinutes = 5): Promise<number> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT id FROM scheduled_emails
+      WHERE status = 'processing'
+        AND processing_since < DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
+    [thresholdMinutes],
+  );
+
+  let recovered = 0;
+  for (const row of rows as RowDataPacket[]) {
+    await pool.execute(
+      "UPDATE scheduled_emails SET status='pending', processing_since=NULL WHERE id = ?",
+      [row.id],
+    );
+    await sendQueue.add(
+      'send',
+      { scheduledEmailId: row.id },
+      { jobId: `se-${row.id}` },
+    );
+    recovered++;
+  }
+
+  if (recovered > 0) {
+    console.log(`[recovery] reset ${recovered} stuck processing job(s) back to pending`);
+  }
+  return recovered;
 }
 
 export function _typeBrand(): Step | undefined {

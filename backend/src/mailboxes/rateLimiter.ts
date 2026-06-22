@@ -53,10 +53,24 @@ local hLimit = tonumber(ARGV[2])
 if dCount >= dLimit then return 'daily' end
 if hCount >= hLimit then return 'hourly' end
 
-local newD = redis.call('INCR', KEYS[1])
-if newD == 1 then redis.call('EXPIRE', KEYS[1], 86400) end
-local newH = redis.call('INCR', KEYS[2])
-if newH == 1 then redis.call('EXPIRE', KEYS[2], 3600) end
+-- Repair keys that exist but lost their TTL (e.g. after AOF(Append of file) truncation or
+-- a manual PERSIST). TTL returns -1 for "exists, no TTL" and -2 for "missing".
+local dTTL = redis.call('TTL', KEYS[1])
+if dTTL == -2 then
+  redis.call('SET', KEYS[1], '0', 'EX', '86400')
+elseif dTTL == -1 then
+  redis.call('EXPIRE', KEYS[1], 86400)
+end
+
+local hTTL = redis.call('TTL', KEYS[2])
+if hTTL == -2 then
+  redis.call('SET', KEYS[2], '0', 'EX', '3600')
+elseif hTTL == -1 then
+  redis.call('EXPIRE', KEYS[2], 3600)
+end
+
+redis.call('INCR', KEYS[1])
+redis.call('INCR', KEYS[2])
 
 return 'ok'
 `;

@@ -77,14 +77,14 @@ export async function processSendJob(job: Job<SendJob>): Promise<void> {
   }
 
   await pool.execute(
-    "UPDATE scheduled_emails SET status='processing', attempts = attempts + 1 WHERE id = ?",
+    "UPDATE scheduled_emails SET status='processing', processing_since=NOW(), attempts = attempts + 1 WHERE id = ?",
     [row.id],
   );
 
   const check = await checkAndIncrement(row.mailbox_id);
   if (!check.allowed) {
     await pool.execute(
-      "UPDATE scheduled_emails SET status='pending' WHERE id = ?",
+      "UPDATE scheduled_emails SET status='pending', processing_since=NULL WHERE id = ?",
       [row.id],
     );
     await pool.execute(
@@ -102,7 +102,7 @@ export async function processSendJob(job: Job<SendJob>): Promise<void> {
       body: row.body,
     });
     await pool.execute(
-      "UPDATE scheduled_emails SET status='sent', sent_at=NOW() WHERE id = ?",
+      "UPDATE scheduled_emails SET status='sent', processing_since=NULL, sent_at=NOW() WHERE id = ?",
       [row.id],
     );
     await pool.execute(
@@ -112,7 +112,7 @@ export async function processSendJob(job: Job<SendJob>): Promise<void> {
   } catch (err) {
     const message = (err as Error).message;
     await pool.execute(
-      "UPDATE scheduled_emails SET status='failed', last_error=? WHERE id = ?",
+      "UPDATE scheduled_emails SET status='failed', processing_since=NULL, last_error=? WHERE id = ?",
       [message, row.id],
     );
     await pool.execute(
