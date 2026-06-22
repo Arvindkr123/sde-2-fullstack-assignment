@@ -143,7 +143,7 @@ export const api = {
     }),
 
   addProspect: (seqId: number, prospect: { email: string; name?: string }) =>
-    request<{ id: number }>(`/sequences/${seqId}/prospects`, {
+    request<{ id: number; autoScheduled: { scheduled: number; skipped: number } | null }>(`/sequences/${seqId}/prospects`, {
       method: 'POST',
       body: JSON.stringify(prospect),
     }),

@@ -113,7 +113,15 @@ router.post('/:id/prospects', async (req: AuthedRequest, res) => {
   const parsed = prospectSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
   const id = await addProspect(seq.id, parsed.data.email, parsed.data.name ?? null);
-  res.status(201).json({ id });
+
+  let autoScheduled: { scheduled: number; skipped: number } | null = null;
+  if (seq.status === 'active') {
+    // scheduleSequence skips prospects already in scheduled_emails, so only
+    // the newly added prospect gets queued here.
+    autoScheduled = await scheduleSequence({ sequenceId: seq.id });
+  }
+
+  res.status(201).json({ id, autoScheduled });
 });
 
 router.patch('/:id/prospects/:pid', async (req: AuthedRequest, res) => {

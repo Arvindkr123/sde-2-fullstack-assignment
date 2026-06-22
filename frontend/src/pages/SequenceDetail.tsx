@@ -70,6 +70,7 @@ export default function SequenceDetail() {
   const [prospectEmail, setProspectEmail] = useState('');
   const [prospectName, setProspectName] = useState('');
   const [addingProspect, setAddingProspect] = useState(false);
+  const [prospectScheduleMsg, setProspectScheduleMsg] = useState('');
 
   const [emails, setEmails] = useState<ScheduledEmail[]>([]);
   const [emailsLoading, setEmailsLoading] = useState(false);
@@ -172,10 +173,15 @@ export default function SequenceDetail() {
     e.preventDefault();
     if (!prospectEmail.trim()) return;
     setAddingProspect(true);
+    setProspectScheduleMsg('');
     try {
-      await api.addProspect(seqId, { email: prospectEmail.trim(), name: prospectName.trim() || undefined });
+      const result = await api.addProspect(seqId, { email: prospectEmail.trim(), name: prospectName.trim() || undefined });
       setProspectEmail(''); setProspectName('');
-      await load();
+      if (result.autoScheduled && result.autoScheduled.scheduled > 0) {
+        const { scheduled } = result.autoScheduled;
+        setProspectScheduleMsg(`Prospect added and auto-scheduled for ${scheduled} step${scheduled !== 1 ? 's' : ''}.`);
+      }
+      await Promise.all([load(), loadEmails()]);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -421,9 +427,16 @@ export default function SequenceDetail() {
               onChange={e => setProspectName(e.target.value)}
             />
           </div>
-          <button type="submit" className="btn-primary btn-sm" disabled={addingProspect} style={{ flexShrink: 0 }}>
-            {addingProspect ? 'Adding…' : '+ Add Prospect'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <button type="submit" className="btn-primary btn-sm" disabled={addingProspect} style={{ flexShrink: 0 }}>
+              {addingProspect ? 'Adding…' : '+ Add Prospect'}
+            </button>
+            {prospectScheduleMsg && (
+              <span style={{ fontSize: 12, color: '#15803d', background: '#dcfce7', border: '1px solid #86efac', borderRadius: 6, padding: '3px 10px' }}>
+                {prospectScheduleMsg}
+              </span>
+            )}
+          </div>
         </form>
 
         <div className="card" style={{ padding: 0 }}>
