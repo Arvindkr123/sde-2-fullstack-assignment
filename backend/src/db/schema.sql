@@ -33,12 +33,14 @@ CREATE TABLE mailboxes (
 CREATE TABLE sequences (
   id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id    INT UNSIGNED NOT NULL,
+  mailbox_id INT UNSIGNED NOT NULL,
   name       VARCHAR(255) NOT NULL,
   status     ENUM('draft','active','paused','completed') NOT NULL DEFAULT 'draft',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY sequences_user_idx (user_id),
-  CONSTRAINT fk_sequences_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  CONSTRAINT fk_sequences_user    FOREIGN KEY (user_id)    REFERENCES users(id)     ON DELETE CASCADE,
+  CONSTRAINT fk_sequences_mailbox FOREIGN KEY (mailbox_id) REFERENCES mailboxes(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE sequence_steps (

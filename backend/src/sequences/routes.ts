@@ -13,7 +13,7 @@ import {
   deleteProspect,
   setSequenceStatus,
 } from './service';
-import { scheduleSequence, resumeSequence, cancelDelayedJobs } from './scheduler';
+import { scheduleSequence, resumeSequence, cancelDelayedJobs, scheduleStepForExistingProspects } from './scheduler';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 const router = Router();
@@ -25,9 +25,20 @@ router.get('/', async (req: AuthedRequest, res) => {
 });
 
 router.post('/', async (req: AuthedRequest, res) => {
-  const parsed = z.object({ name: z.string().min(1) }).safeParse(req.body);
+  const parsed = z.object({
+    name: z.string().min(1),
+    mailbox_id: z.number().int().positive(),
+  }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
-  const id = await createSequence(req.userId!, parsed.data.name);
+
+  // Verify the mailbox belongs to this user
+  const [mbRows] = await pool.execute<RowDataPacket[]>(
+    'SELECT id FROM mailboxes WHERE id = ? AND user_id = ? LIMIT 1',
+    [parsed.data.mailbox_id, req.userId!],
+  );
+  if (mbRows.length === 0) return res.status(400).json({ error: 'invalid_mailbox' });
+
+  const id = await createSequence(req.userId!, parsed.data.name, parsed.data.mailbox_id);
   res.status(201).json({ id });
 });
 
@@ -65,7 +76,18 @@ router.post('/:id/steps', async (req: AuthedRequest, res) => {
       'INSERT INTO sequence_steps (sequence_id, step_order, delay_days, subject, body) VALUES (?, ?, ?, ?, ?)',
       [seq.id, step_order, delay_days, subject, body],
     );
-    res.status(201).json({ id: result.insertId });
+    const stepId = result.insertId;
+
+    let autoScheduled: { scheduled: number; skipped: number } | null = null;
+    if (seq.status === 'active') {
+      autoScheduled = await scheduleStepForExistingProspects({
+        sequenceId: seq.id,
+        stepId,
+        delayDays: delay_days,
+      });
+    }
+
+    res.status(201).json({ id: stepId, autoScheduled });
   } catch (err: any) {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'step_order_conflict', message: `step_order ${step_order} already exists in this sequence` });

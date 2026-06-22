@@ -33,6 +33,8 @@ export interface Sequence {
   id: number;
   name: string;
   status: 'draft' | 'active' | 'paused' | 'completed';
+  mailbox_id: number;
+  mailbox_email: string;
 }
 
 export interface Step {
@@ -115,10 +117,10 @@ export const api = {
   getSequence: (id: number) =>
     request<SequenceDetail>(`/sequences/${id}`),
 
-  createSequence: (name: string) =>
+  createSequence: (name: string, mailboxId: number) =>
     request<{ id: number }>('/sequences', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, mailbox_id: mailboxId }),
     }),
 
   scheduleSequence: (id: number) =>
@@ -135,7 +137,7 @@ export const api = {
     }),
 
   addStep: (seqId: number, step: { step_order: number; delay_days: number; subject: string; body: string }) =>
-    request<{ id: number }>(`/sequences/${seqId}/steps`, {
+    request<{ id: number; autoScheduled: { scheduled: number; skipped: number } | null }>(`/sequences/${seqId}/steps`, {
       method: 'POST',
       body: JSON.stringify(step),
     }),

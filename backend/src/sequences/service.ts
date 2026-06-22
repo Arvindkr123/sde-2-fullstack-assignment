@@ -4,6 +4,8 @@ import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 export interface Sequence {
   id: number;
   user_id: number;
+  mailbox_id: number;
+  mailbox_email: string;
   name: string;
   status: 'draft' | 'active' | 'paused' | 'completed';
 }
@@ -30,7 +32,11 @@ export async function getSequenceForUser(
   userId: number,
 ): Promise<Sequence | null> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    'SELECT id, user_id, name, status FROM sequences WHERE id = ? AND user_id = ? LIMIT 1',
+    `SELECT s.id, s.user_id, s.mailbox_id, m.email AS mailbox_email, s.name, s.status
+       FROM sequences s
+       JOIN mailboxes m ON m.id = s.mailbox_id
+      WHERE s.id = ? AND s.user_id = ?
+      LIMIT 1`,
     [sequenceId, userId],
   );
   return (rows[0] as Sequence) ?? null;
@@ -38,16 +44,20 @@ export async function getSequenceForUser(
 
 export async function listSequencesForUser(userId: number): Promise<Sequence[]> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    'SELECT id, user_id, name, status, created_at FROM sequences WHERE user_id = ? ORDER BY id DESC',
+    `SELECT s.id, s.user_id, s.mailbox_id, m.email AS mailbox_email, s.name, s.status, s.created_at
+       FROM sequences s
+       JOIN mailboxes m ON m.id = s.mailbox_id
+      WHERE s.user_id = ?
+      ORDER BY s.id DESC`,
     [userId],
   );
   return rows as Sequence[];
 }
 
-export async function createSequence(userId: number, name: string): Promise<number> {
+export async function createSequence(userId: number, name: string, mailboxId: number): Promise<number> {
   const [result] = await pool.execute<ResultSetHeader>(
-    "INSERT INTO sequences (user_id, name, status) VALUES (?, ?, 'draft')",
-    [userId, name],
+    "INSERT INTO sequences (user_id, mailbox_id, name, status) VALUES (?, ?, ?, 'draft')",
+    [userId, mailboxId, name],
   );
   return result.insertId;
 }

@@ -65,6 +65,7 @@ export default function SequenceDetail() {
   const [stepSubject, setStepSubject] = useState('');
   const [stepBody, setStepBody] = useState('');
   const [addingStep, setAddingStep] = useState(false);
+  const [stepScheduleMsg, setStepScheduleMsg] = useState('');
 
   const [prospectEmail, setProspectEmail] = useState('');
   const [prospectName, setProspectName] = useState('');
@@ -151,10 +152,15 @@ export default function SequenceDetail() {
     const delay = parseInt(stepDelay, 10);
     if (!stepSubject.trim() || !stepBody.trim() || isNaN(order) || isNaN(delay)) return;
     setAddingStep(true);
+    setStepScheduleMsg('');
     try {
-      await api.addStep(seqId, { step_order: order, delay_days: delay, subject: stepSubject.trim(), body: stepBody.trim() });
+      const result = await api.addStep(seqId, { step_order: order, delay_days: delay, subject: stepSubject.trim(), body: stepBody.trim() });
       setStepOrder(''); setStepDelay('0'); setStepSubject(''); setStepBody('');
-      await load();
+      if (result.autoScheduled && result.autoScheduled.scheduled > 0) {
+        const { scheduled } = result.autoScheduled;
+        setStepScheduleMsg(`Step added and auto-scheduled for ${scheduled} existing prospect${scheduled !== 1 ? 's' : ''}.`);
+      }
+      await Promise.all([load(), loadEmails()]);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -214,6 +220,9 @@ export default function SequenceDetail() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 className="page-title">{seq.name}</h1>
             <StatusBadge status={seq.status} />
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            Mailbox: <strong>{seq.mailbox_email}</strong>
           </div>
           <button className="btn-secondary btn-sm" style={{ marginTop: 6 }} onClick={() => navigate('/sequences')}>
             ← Back
@@ -339,9 +348,16 @@ export default function SequenceDetail() {
               style={{ marginTop: 4, resize: 'vertical' }}
             />
           </div>
-          <button type="submit" className="btn-primary btn-sm" disabled={addingStep}>
-            {addingStep ? 'Adding…' : '+ Add Step'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <button type="submit" className="btn-primary btn-sm" disabled={addingStep}>
+              {addingStep ? 'Adding…' : '+ Add Step'}
+            </button>
+            {stepScheduleMsg && (
+              <span style={{ fontSize: 12, color: '#15803d', background: '#dcfce7', border: '1px solid #86efac', borderRadius: 6, padding: '3px 10px' }}>
+                {stepScheduleMsg}
+              </span>
+            )}
+          </div>
         </form>
 
         <div className="card" style={{ padding: 0, overflowX: 'auto' }}>

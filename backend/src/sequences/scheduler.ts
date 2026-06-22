@@ -173,18 +173,13 @@ export async function resumeSequence(sequenceId: number): Promise<ScheduleResult
 
 async function pickMailboxForSequence(sequenceId: number): Promise<number> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT m.id
-       FROM sequences s
-       JOIN mailboxes m ON m.user_id = s.user_id
-      WHERE s.id = ?
-      ORDER BY m.id ASC
-      LIMIT 1`,
+    'SELECT mailbox_id FROM sequences WHERE id = ? LIMIT 1',
     [sequenceId],
   );
-  if (rows.length === 0) {
+  if (rows.length === 0 || !rows[0].mailbox_id) {
     throw new Error('no mailbox available for sequence');
   }
-  return rows[0].id as number;
+  return rows[0].mailbox_id as number;
 }
 
 /**
@@ -206,6 +201,60 @@ export async function cancelDelayedJobs(sequenceId: number): Promise<number> {
     }
   }
   return cancelled;
+}
+
+/**
+ * When a new step is added to an already-active sequence, schedule that
+ * specific step for all existing active prospects who don't already have it
+ * queued. Timing is `now + delay_days` so it behaves like any other step.
+ */
+export async function scheduleStepForExistingProspects(opts: {
+  sequenceId: number;
+  stepId: number;
+  delayDays: number;
+}): Promise<ScheduleResult> {
+  const { sequenceId, stepId, delayDays } = opts;
+
+  const mailboxId = await pickMailboxForSequence(sequenceId);
+  const prospects = await getProspects(sequenceId);
+
+  const [existingRows] = await pool.execute<RowDataPacket[]>(
+    'SELECT DISTINCT prospect_id FROM scheduled_emails WHERE sequence_id = ? AND step_id = ?',
+    [sequenceId, stepId],
+  );
+  const alreadyScheduled = new Set((existingRows as RowDataPacket[]).map(r => r.prospect_id as number));
+
+  let scheduled = 0;
+  let skipped = 0;
+  const now = Date.now();
+
+  for (const prospect of prospects) {
+    if (prospect.status !== 'active') { skipped++; continue; }
+    if (alreadyScheduled.has(prospect.id)) { skipped++; continue; }
+
+    const scheduledAt = new Date(now + delayDays * 24 * 60 * 60 * 1000);
+
+    try {
+      const [result] = await pool.execute<ResultSetHeader>(
+        `INSERT INTO scheduled_emails
+           (sequence_id, step_id, prospect_id, mailbox_id, scheduled_at, status, attempts)
+         VALUES (?, ?, ?, ?, ?, 'pending', 0)`,
+        [sequenceId, stepId, prospect.id, mailboxId, scheduledAt],
+      );
+      const delay = Math.max(0, scheduledAt.getTime() - Date.now());
+      await sendQueue.add(
+        'send',
+        { scheduledEmailId: result.insertId },
+        { delay, jobId: `se-${result.insertId}` },
+      );
+      scheduled++;
+    } catch (err) {
+      console.error(`[scheduler] failed to schedule step ${stepId} for prospect ${prospect.id}:`, (err as Error).message);
+      skipped++;
+    }
+  }
+
+  return { scheduled, skipped };
 }
 
 export function _typeBrand(): Step | undefined {
