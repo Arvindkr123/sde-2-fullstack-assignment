@@ -30,6 +30,18 @@ export async function scheduleSequence(opts: ScheduleOpts): Promise<ScheduleResu
   const prospects = await getProspects(sequenceId);
   const mailboxId = await pickMailboxForSequence(sequenceId);
 
+  // Transition draft→active BEFORE enqueuing any BullMQ jobs. The worker runs
+  // in a separate process and can pick up a delay=0 job from Redis before this
+  // function returns. If the sequence is still 'draft' at that point, the worker
+  // marks every email as 'skipped'. Activating first prevents that race.
+  const [seqRows] = await pool.execute<RowDataPacket[]>(
+    'SELECT status FROM sequences WHERE id = ? LIMIT 1',
+    [sequenceId],
+  );
+  if ((seqRows[0] as RowDataPacket)?.status === 'draft') {
+    await setSequenceStatus(sequenceId, 'active');
+  }
+
   // Skip prospects that already have scheduled emails so re-calling on an
   // active sequence only queues newly-added prospects, not duplicates.
   const [existingRows] = await pool.execute<RowDataPacket[]>(
@@ -83,14 +95,6 @@ export async function scheduleSequence(opts: ScheduleOpts): Promise<ScheduleResu
     }
   }
 
-  // Only transition draft→active; don't disturb an already-active/paused sequence.
-  const [seqRows] = await pool.execute<RowDataPacket[]>(
-    'SELECT status FROM sequences WHERE id = ? LIMIT 1',
-    [sequenceId],
-  );
-  if ((seqRows[0] as RowDataPacket)?.status === 'draft') {
-    await setSequenceStatus(sequenceId, 'active');
-  }
   return { scheduled, skipped };
 }
 

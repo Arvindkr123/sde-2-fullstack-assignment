@@ -83,10 +83,10 @@ export async function processSendJob(job: Job<SendJob>): Promise<void> {
 
   const check = await checkAndIncrement(row.mailbox_id);
   if (!check.allowed) {
-    await pool.execute(
-      "UPDATE scheduled_emails SET status='pending', processing_since=NULL WHERE id = ?",
-      [row.id],
-    );
+    // Leave status as 'processing' (processing_since already set) so that
+    // recoverStuckJobs picks this up after 5 min and re-queues it. Resetting
+    // to 'pending' here would drop the BullMQ job with no replacement, leaving
+    // the row stuck in 'pending' with nothing to process it.
     await pool.execute(
       'INSERT INTO send_logs (scheduled_email_id, mailbox_id, status, message) VALUES (?, ?, ?, ?)',
       [row.id, row.mailbox_id, 'rate_limited', `limit hit: ${check.reason}`],
