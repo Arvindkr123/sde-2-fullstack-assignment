@@ -78,6 +78,7 @@ export default function SequenceDetail() {
 
   const [logs, setLogs] = useState<SendLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const logPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -126,6 +127,14 @@ export default function SequenceDetail() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [seq?.status, loadEmails]);
 
+  useEffect(() => {
+    if (!seq) return;
+    if (seq.status === 'active') {
+      logPollRef.current = setInterval(() => void loadLogs(), 8000);
+    }
+    return () => { if (logPollRef.current) clearInterval(logPollRef.current); };
+  }, [seq?.status, loadLogs]);
+
   async function handleSchedule() {
     setActionLoading(true);
     try { await api.scheduleSequence(seqId); await Promise.all([load(), loadEmails(), loadLogs()]); }
@@ -161,7 +170,7 @@ export default function SequenceDetail() {
         const { scheduled } = result.autoScheduled;
         setStepScheduleMsg(`Step added and auto-scheduled for ${scheduled} existing prospect${scheduled !== 1 ? 's' : ''}.`);
       }
-      await Promise.all([load(), loadEmails()]);
+      await Promise.all([load(), loadEmails(), loadLogs()]);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -181,7 +190,7 @@ export default function SequenceDetail() {
         const { scheduled } = result.autoScheduled;
         setProspectScheduleMsg(`Prospect added and auto-scheduled for ${scheduled} step${scheduled !== 1 ? 's' : ''}.`);
       }
-      await Promise.all([load(), loadEmails()]);
+      await Promise.all([load(), loadEmails(), loadLogs()]);
     } catch (err) {
       setError((err as Error).message);
     } finally {
